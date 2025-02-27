@@ -5,7 +5,8 @@ const config = {
   server: process.env.DB_SERVER,
   database: process.env.DB_DATABASE,
   options: {
-    encrypt: true, // Use this if you're on Windows Azure
+    trustedConnection: true,
+    trusServerCertificate: true,
     enableArithAbort: true,
   },
 };
