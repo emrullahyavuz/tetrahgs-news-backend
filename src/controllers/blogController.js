@@ -10,6 +10,7 @@ const getBlogs = async (req, res) => {
   }
 };
 
+
 const getBlogById = async (req, res) => {
   const { id } = req.params;
   try {
