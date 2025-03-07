@@ -48,27 +48,39 @@ router.post("/register", async (req, res) => {
       .query(`
         INSERT INTO Users (fullName, email, password, userType, gender, createdAt)
         VALUES (@fullName, @email, @password, @userType, @gender, GETDATE());
-        SELECT SCOPE_IDENTITY() AS id;
-      `)
-
-    const userId = result.recordset[0].id
-
+        `)
+        
+    // SELECT SCOPE_IDENTITY() AS id;
+    // const userId = result.recordset[0].id
+    console.log("result",result)
+    const resultStatus = result.rowsAffected[0] > 0 ? "true" : "false";
+    console.log("result",resultStatus)
+    
+    
     // Generate tokens
-    const accessToken =  generateAccessToken(userId)
-    const { refreshToken } = await generateRefreshToken(userId)
+    // 
+    // const accessToken =  generateAccessToken(userId)
+    // const { refreshToken } = await generateRefreshToken(userId)
 
-    res.status(201).json({
-      message: "Kullanıcı başarıyla oluşturuldu.",
-      user: {
-        id: userId,
-        fullName,
-        email,
-        userType,
-        gender,
-      },
-      accessToken,
-      refreshToken,
-    })
+    if(resultStatus){
+      res.status(201).json({
+        message: "Kullanıcı başarıyla oluşturuldu.",
+        // user: {
+        //   id: userId,
+        //   fullName,
+        //   email,
+        //   userType,
+        //   gender,
+        // },
+        // accessToken,
+        // refreshToken,
+      })
+    }
+    else{
+      // başarısız message vs.
+    }
+
+    
   } catch (error) {
     console.error("Register error:", error)
     res.status(500).json({ message: "Sunucu hatası. Lütfen daha sonra tekrar deneyin." })
@@ -168,7 +180,7 @@ router.post("/register-admin", auth, checkRole(["admin"]), async (req, res) => {
         SELECT SCOPE_IDENTITY() AS id;
       `)
 
-    const userId = result.recordset[0].id
+    const resultStatus = result.rowsAffected[0] > 0 ? "true" : "false";
 
     res.status(201).json({
       message: "User created successfully",
