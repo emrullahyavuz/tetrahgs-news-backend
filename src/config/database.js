@@ -49,7 +49,7 @@ async function getUsers() {
     }
 
     const result = await pool.request().query("SELECT * FROM Users")
-    console.log("Users:", result.recordset)
+    // console.log("Users:", result.recordset)
 
     return result.recordset
   } catch (err) {

@@ -1,5 +1,6 @@
 require("dotenv").config()
 const express = require("express")
+const app = express()
 const cors = require("cors")
 const path = require("path")
 const { connectDB, getUsers } = require("./config/database")
@@ -12,7 +13,6 @@ const categoriesRoutes = require("./routes/categories")
 const usersRoutes = require("./routes/users")
 const settingsRoutes = require("./routes/settings")
 
-const app = express()
 
 // Connect to database
 console.log("Initializing database connection...")
@@ -29,8 +29,31 @@ getUsers()
     console.error("Error retrieving users:", err.message)
   })
 
+  // Tüm originlere izin veren basit yapılandırma
+const corsOptions = {
+  origin: function (origin, callback) {
+    // İzin verilen origins listesi
+    const whiteList = [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://www.google.com",
+    ];
+
+    if (whiteList.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS politikası tarafından engellendiniz."));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  maxAge: 86400, // 24 saat
+};
+
 // Middleware
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use("/uploads", express.static(path.join(__dirname, "uploads")))
