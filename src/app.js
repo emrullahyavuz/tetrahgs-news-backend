@@ -13,6 +13,7 @@ const authRoutes = require("./routes/auth")
 const newsRoutes = require("./routes/news")
 const categoriesRoutes = require("./routes/categories")
 const usersRoutes = require("./routes/users")
+const commentsRoutes = require("./routes/comments")
 const settingsRoutes = require("./routes/settings")
 
 
