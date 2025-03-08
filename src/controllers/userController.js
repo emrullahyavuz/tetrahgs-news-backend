@@ -5,17 +5,19 @@ const bcrypt = require("bcryptjs")
 // Tüm kullanıcıları getir
 exports.getAllUsers = async (req, res) => {
   try {
-    const pool = await sql.connect()
+    const pool = await poolPromise
     const result = await pool.request().query(`
-        SELECT u.id, u.name, u.email, u.role, u.status, u.lastLogin, u.createdAt,
-               COUNT(n.id) as articles
-        FROM Users u
-        LEFT JOIN News n ON u.id = n.authorId
-        GROUP BY u.id, u.name, u.email, u.role, u.status, u.lastLogin, u.createdAt
-        ORDER BY u.createdAt DESC
+      SELECT u.id, u.fullName, u.email, u.userType, u.status, u.lastLogin, u.createdAt,
+             COUNT(n.id) as articles
+      FROM Users u
+      LEFT JOIN News n ON u.id = n.authorId
+      GROUP BY u.id, u.fullName, u.email, u.userType, u.status, u.lastLogin, u.createdAt
+      ORDER BY u.createdAt DESC
     `)
+
     res.json(result.recordset)
   } catch (error) {
+    console.error("Error fetching users:", error)
     res.status(500).json({ message: "Server error" })
   }
 }
