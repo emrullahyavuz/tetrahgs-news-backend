@@ -1,17 +1,5 @@
 const express = require("express")
 const router = express.Router()
-const { sql, poolPromise } = require("../config/database")
-const { hashPassword, comparePassword } = require("../utils/passwordUtils")
-const {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-  deleteRefreshToken,
-  deleteAllUserRefreshTokens,
-} = require("../utils/tokenUtils")
-const { auth } = require("../middleware/auth.js")
-const {checkRole} = require("../middleware/auth.js")
-const bcrypt = require("bcryptjs") // Import bcrypt
 const {register, login} = require("../controllers/authController.js")
 
 // Register a new user
