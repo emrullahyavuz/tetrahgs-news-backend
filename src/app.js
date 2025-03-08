@@ -38,6 +38,8 @@ const corsOptions = {
     const whiteList = [
       "http://localhost:3000",
       "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5000",
       "http://127.0.0.1:5173",
       "https://www.google.com",
     ];
@@ -57,7 +59,7 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions))
 app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
+app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser());
 app.use(logger);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")))
@@ -74,6 +76,7 @@ app.use("/api/auth", authRoutes)
 app.use("/api/news", newsRoutes)
 app.use("/api/categories", categoriesRoutes)
 app.use("/api/users", usersRoutes)
+app.use("/api/comments", commentsRoutes);
 app.use("/api/settings", settingsRoutes)
 
 // Basic route for testing
