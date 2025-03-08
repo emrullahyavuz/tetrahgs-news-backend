@@ -7,7 +7,7 @@ const {
   deleteRefreshToken,
   deleteAllUserRefreshTokens,
 } = require("../utils/tokenUtils")
-const bcrypt = require("bcryptjs")
+
 
 
 const register = async (req, res) => {
@@ -84,8 +84,9 @@ const register = async (req, res) => {
 }
 
 const login = async (req, res) => {
+  const { email, password, rememberMe = false } = req.body
   try {
-    const { email, password, rememberMe = false } = req.body
+    
 
     // Validate input
     if (!email || !password) {
@@ -110,6 +111,9 @@ const login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: "Geçersiz email veya şifre." })
     }
+    // Generate tokens
+    // const accessToken = generateAccessToken(user.id)
+    const { refreshToken } = await generateRefreshToken(user.id, rememberMe)
 
     // Update last login
     await pool
@@ -117,9 +121,6 @@ const login = async (req, res) => {
       .input("userId", sql.Int, user.id)
       .query("UPDATE Users SET lastLogin = GETDATE() WHERE id = @userId")
 
-    // Generate tokens
-    const accessToken = generateAccessToken(user.id)
-    const { refreshToken } = await generateRefreshToken(user.id, rememberMe)
 
     res.json({
       message: "Giriş başarılı.",
@@ -130,7 +131,7 @@ const login = async (req, res) => {
         userType: user.userType,
         gender: user.gender,
       },
-      accessToken,
+      // accessToken,
       refreshToken,
     })
   } catch (error) {
