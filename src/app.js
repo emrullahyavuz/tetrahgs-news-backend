@@ -9,12 +9,12 @@ const {logger} = require("./middleware/logEvents")
 // const errorHandler = require("./middleware/error")
 
 // Routes
-const authRoutes = require("./routes/auth")
-const newsRoutes = require("./routes/news")
-const categoriesRoutes = require("./routes/categories")
-const usersRoutes = require("./routes/users")
-const commentsRoutes = require("./routes/comments")
-const settingsRoutes = require("./routes/settings")
+const authRoutes = require("./routes/authRoutes")
+const newsRoutes = require("./routes/newsRoutes.js")
+const categoriesRoutes = require("./routes/categoryRoutes.js")
+const usersRoutes = require("./routes/userRoutes.js")
+const commentsRoutes = require("./routes/commentRoutes.js")
+const settingsRoutes = require("./routes/settingRoutes.js")
 
 
 // Connect to database

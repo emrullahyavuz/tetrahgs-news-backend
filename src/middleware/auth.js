@@ -1,31 +1,21 @@
-const jwt = require("jsonwebtoken")
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/config');
 
-const auth = (req, res, next) => {
+module.exports = (req, res, next) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "")
-
+    // Get token from header
+    const token = req.header('Authorization')?.split(' ')[1];
+    
     if (!token) {
-      return res.status(401).json({ message: "Authentication required" })
+      return res.status(401).json({ message: 'Yetkilendirme hatası: Token bulunamadı' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    req.user = decoded
-    next()
-  } catch (error) {
-    res.status(401).json({ message: "Invalid token" })
+    // Verify token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded.user;
+    next();
+  } catch (err) {
+    console.error('Token doğrulama hatası:', err);
+    res.status(401).json({ message: 'Yetkilendirme hatası: Geçersiz token' });
   }
-}
-
-const checkRole = (roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Permission denied" })
-    }
-    next()
-  }
-}
-
-module.exports = {
-  auth,
-  checkRole,
-}
+};

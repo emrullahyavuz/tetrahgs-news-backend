@@ -1,31 +1,39 @@
-const multer = require("multer")
-const path = require("path")
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { UPLOAD_PATH, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } = require('../config/config');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/")
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9)
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname))
-  },
-})
-
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
-    cb(null, true)
-  } else {
-    cb(new Error("Not an image! Please upload an image."), false)
-  }
+// Uploads klasörünü oluştur
+if (!fs.existsSync(UPLOAD_PATH)) {
+  fs.mkdirSync(UPLOAD_PATH, { recursive: true });
 }
 
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+// Storage configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, UPLOAD_PATH);
   },
-})
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
 
-module.exports = upload
+// File filter
+const fileFilter = (req, file, cb) => {
+  if (ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Desteklenmeyen dosya formatı. Sadece JPEG, PNG, GIF ve WEBP formatları kabul edilir.'), false);
+  }
+};
 
+// Upload middleware
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter
+});
+
+module.exports = upload;

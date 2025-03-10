@@ -72,6 +72,7 @@ async function connectDB() {
 module.exports = {
   connectDB,
   getPool,
+  pool,
   sql,
   getUsers,
   poolPromise,
