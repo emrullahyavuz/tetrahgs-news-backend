@@ -21,7 +21,7 @@ router.get("/", async (req, res) => {
 })
 
 // Update settings
-router.put("/", auth, checkRole(["admin"]), async (req, res) => {
+router.put("/", auth, async (req, res) => {
   try {
     const settings = req.body
     const pool = await sql.connect()
