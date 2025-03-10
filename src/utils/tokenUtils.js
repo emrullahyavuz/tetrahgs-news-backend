@@ -1,115 +1,135 @@
-const jwt = require("jsonwebtoken")
-const crypto = require("crypto")
-const { sql, poolPromise } = require("../config/database")
+const jwt = require('jsonwebtoken');
+const { pool, sql } = require('../config/database');
+const { 
+  JWT_SECRET, 
+  JWT_REFRESH_SECRET, 
+  JWT_EXPIRE, 
+  JWT_REFRESH_EXPIRE 
+} = require('../config/config');
 
-// Generate access token (short-lived)
-const generateAccessToken = (userId) => {
+// Generate JWT token
+const generateToken = (user) => {
+  return jwt.sign(
+    { 
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        userType: user.userType
+      } 
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRE }
+  );
+};
+
+// Generate refresh token
+const generateRefreshToken = (userId) => {
   return jwt.sign(
     { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: "1h" }, // 1 hour expiration
-  )
-}
+    JWT_REFRESH_SECRET,
+    { expiresIn: JWT_REFRESH_EXPIRE }
+  );
+};
 
-// Generate refresh token (long-lived)
-const generateRefreshToken = async (userId, rememberMe = false) => {
+// Save refresh token to database
+const saveRefreshToken = async (userId, refreshToken) => {
   try {
-    // Generate a random token
-    const refreshToken = crypto.randomBytes(40).toString("hex")
-
-    // Set expiration based on rememberMe flag
-    const expiresAt = new Date()
-    if (rememberMe) {
-      // 30 days if remember me is checked
-      expiresAt.setDate(expiresAt.getDate() + 30)
-    } else {
-      // 7 days by default
-      expiresAt.setDate(expiresAt.getDate() + 7)
-    }
-
-    // Store refresh token in database
-    const pool = await poolPromise
-    await pool
-      .request()
-      .input("userId", sql.Int, userId)
-      .input("token", sql.NVarChar, refreshToken)
-      .input("expiresAt", sql.DateTime, expiresAt)
+    const poolConnection = await pool;
+    
+    // Delete existing refresh tokens for this user
+    await poolConnection.request()
+      .input('userId', sql.Int, userId)
+      .query('DELETE FROM RefreshTokens WHERE userId = @userId');
+    
+    // Save new refresh token
+    await poolConnection.request()
+      .input('userId', sql.Int, userId)
+      .input('token', sql.NVarChar, refreshToken)
+      .input('expiresAt', sql.DateTime, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 7 days
       .query(`
-        INSERT INTO RefreshTokens (userId, token, expiresAt, createdAt)
-        VALUES (@userId, @token, @expiresAt, GETDATE())
-      `)
-
-    return { refreshToken, expiresAt }
-  } catch (error) {
-    console.error("Error generating refresh token:", error)
-    throw error
+        INSERT INTO RefreshTokens (userId, token, expiresAt)
+        VALUES (@userId, @token, @expiresAt)
+      `);
+    
+    return true;
+  } catch (err) {
+    console.error('Refresh token kaydetme hatası:', err);
+    throw err;
   }
-}
+};
 
 // Verify refresh token
-const verifyRefreshToken = async (token) => {
+const verifyRefreshToken = async (refreshToken) => {
   try {
-    const pool = await poolPromise
-    const result = await pool
-      .request()
-      .input("token", sql.NVarChar, token)
+    // Verify token
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    
+    // Check if token exists in database
+    const poolConnection = await pool;
+    const result = await poolConnection.request()
+      .input('token', sql.NVarChar, refreshToken)
+      .input('userId', sql.Int, decoded.userId)
       .query(`
-        SELECT rt.*, u.id as userId
-        FROM RefreshTokens rt
-        JOIN Users u ON rt.userId = u.id
-        WHERE rt.token = @token AND rt.expiresAt > GETDATE()
-      `)
-
+        SELECT * FROM RefreshTokens 
+        WHERE token = @token AND userId = @userId AND expiresAt > GETDATE()
+      `);
+    
     if (result.recordset.length === 0) {
-      return null
+      throw new Error('Geçersiz refresh token');
     }
-
-    return result.recordset[0]
-  } catch (error) {
-    console.error("Error verifying refresh token:", error)
-    throw error
+    
+    // Get user info
+    const userResult = await poolConnection.request()
+      .input('id', sql.Int, decoded.userId)
+      .query('SELECT * FROM Users WHERE id = @id');
+    
+    if (userResult.recordset.length === 0) {
+      throw new Error('Kullanıcı bulunamadı');
+    }
+    
+    return userResult.recordset[0];
+  } catch (err) {
+    console.error('Refresh token doğrulama hatası:', err);
+    throw err;
   }
-}
+};
 
 // Delete refresh token
-const deleteRefreshToken = async (token) => {
+const deleteRefreshToken = async (refreshToken) => {
   try {
-    const pool = await poolPromise
-    await pool
-      .request()
-      .input("token", sql.NVarChar, token)
-      .query(`
-        DELETE FROM RefreshTokens
-        WHERE token = @token
-      `)
-  } catch (error) {
-    console.error("Error deleting refresh token:", error)
-    throw error
+    const poolConnection = await pool;
+    await poolConnection.request()
+      .input('token', sql.NVarChar, refreshToken)
+      .query('DELETE FROM RefreshTokens WHERE token = @token');
+    
+    return true;
+  } catch (err) {
+    console.error('Refresh token silme hatası:', err);
+    throw err;
   }
-}
+};
 
 // Delete all refresh tokens for a user
 const deleteAllUserRefreshTokens = async (userId) => {
   try {
-    const pool = await poolPromise
-    await pool
-      .request()
-      .input("userId", sql.Int, userId)
-      .query(`
-        DELETE FROM RefreshTokens
-        WHERE userId = @userId
-      `)
-  } catch (error) {
-    console.error("Error deleting user refresh tokens:", error)
-    throw error
+    const poolConnection = await pool;
+    await poolConnection.request()
+      .input('userId', sql.Int, userId)
+      .query('DELETE FROM RefreshTokens WHERE userId = @userId');
+    
+    return true;
+  } catch (err) {
+    console.error('Kullanıcı refresh tokenlarını silme hatası:', err);
+    throw err;
   }
-}
+};
 
 module.exports = {
-  generateAccessToken,
+  generateToken,
   generateRefreshToken,
+  saveRefreshToken,
   verifyRefreshToken,
   deleteRefreshToken,
-  deleteAllUserRefreshTokens,
-}
-
+  deleteAllUserRefreshTokens
+};
