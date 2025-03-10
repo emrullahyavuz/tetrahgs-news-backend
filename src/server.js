@@ -1,7 +1,16 @@
-const app = require("./app")
+const app = require('./app');
+const { PORT } = require('./config/config');
+const fs = require('fs');
+const path = require('path');
+const { UPLOAD_PATH } = require('./config/config');
 
-const PORT = process.env.PORT || 5000
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(UPLOAD_PATH)) {
+  fs.mkdirSync(UPLOAD_PATH, { recursive: true });
+  console.log(`Created ${UPLOAD_PATH} directory`);
+}
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
-
+  console.log(`Server running on port ${PORT}`);
+});

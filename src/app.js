@@ -1,105 +1,46 @@
-require("dotenv").config()
-const express = require("express")
-const app = express()
-const cors = require("cors")
-const path = require("path")
-const cookieParser = require("cookie-parser");
-const { connectDB, getUsers } = require("./config/database")
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { pool } = require('./config/database');
+const errorHandler = require('./middleware/errorHandler');
 const {logger} = require("./middleware/logEvents")
-// const errorHandler = require("./middleware/error")
 
 // Routes
-const authRoutes = require("./routes/authRoutes")
-const newsRoutes = require("./routes/newsRoutes.js")
-const categoriesRoutes = require("./routes/categoryRoutes.js")
-const usersRoutes = require("./routes/userRoutes.js")
-const commentsRoutes = require("./routes/commentRoutes.js")
-const settingsRoutes = require("./routes/settingRoutes.js")
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const newsRoutes = require('./routes/newsRoutes');
+const commentRoutes = require('./routes/commentRoutes');
+const tagRoutes = require('./routes/tagRoutes');
+const settingRoutes = require('./routes/settingRoutes');
 
-
-// Connect to database
-console.log("Initializing database connection...")
-connectDB().catch((err) => {
-  console.error("Failed to connect to database:", err.message)
-})
-
-// Test database connection by getting users
-getUsers()
-  .then((users) => {
-    console.log(`Successfully retrieved ${users.length} users from database`)
-  })
-  .catch((err) => {
-    console.error("Error retrieving users:", err.message)
-  })
-
-  // Tüm originlere izin veren basit yapılandırma
-const corsOptions = {
-  origin: function (origin, callback) {
-    // İzin verilen origins listesi
-    const whiteList = [
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "http://localhost:5000",
-      "http://127.0.0.1:5173",
-      "https://www.google.com",
-    ];
-
-    if (whiteList.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS politikası tarafından engellendiniz."));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-  maxAge: 86400, // 24 saat
-};
+const app = express();
 
 // Middleware
-app.use(cors(corsOptions))
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-app.use(cookieParser());
-app.use(logger);
-app.use("/uploads", express.static(path.join(__dirname, "uploads")))
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Create uploads directory if it doesn't exist
-const fs = require("fs")
-if (!fs.existsSync("./uploads")) {
-  fs.mkdirSync("./uploads")
-  console.log("Created uploads directory")
-}
+// Serve static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-app.use("/api/auth", authRoutes)
-app.use("/api/news", newsRoutes)
-app.use("/api/categories", categoriesRoutes)
-app.use("/api/users", usersRoutes)
-app.use("/api/comments", commentsRoutes);
-app.use("/api/settings", settingsRoutes)
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/news', newsRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/tags', tagRoutes);
+app.use('/api/settings', settingRoutes);
 
-// Basic route for testing
-app.get("/", (req, res) => {
-  res.json({ message: "Auth API is running" })
-})
+// Base route
+app.get('/', (req, res) => {
+  res.json({ message: 'API çalışıyor' });
+});
 
-// Get all users route (for testing)
-app.get("/api/test/users", async (req, res) => {
-  try {
-    const users = await getUsers()
-    res.json(users)
-  } catch (error) {
-    res.status(500).json({ message: "Sunucu hatası. Lütfen daha sonra tekrar deneyin." })
-  }
-})
-
-// Error handling
-app.use((err, req, res, next) => {
-  console.error(err.stack)
-  res.status(500).json({ message: "Sunucu hatası. Lütfen daha sonra tekrar deneyin." })
-})
+// Error handler
+app.use(errorHandler);
+// Logger
+app.use(logger)
 
 module.exports = app;
