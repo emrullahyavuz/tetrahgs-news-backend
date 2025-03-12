@@ -29,6 +29,9 @@ router.put('/:id/password', auth, userController.updatePassword);
 // @access  Private (Admin or Self)
 router.post('/:id/profile-image', auth, upload.single('profileImage'), userController.uploadProfileImage);
 
+
+router.post('/', userController.createUser)
+
 // @route   DELETE /api/users/:id
 // @desc    Delete user
 // @access  Private (Admin or Self)

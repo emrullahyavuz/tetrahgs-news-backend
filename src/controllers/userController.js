@@ -7,7 +7,8 @@ const { deleteFile, getFileUrl } = require('../utils/fileUtils');
 exports.getAllUsers = async (req, res, next) => {
   try {
     // // Check if admin
-    // if (req.user.userType !== 'admin') {
+    // business kontrolünüde yap.
+    // if (req.user.role !== 'admin') {
     //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
     // }
     
@@ -67,8 +68,9 @@ exports.updateUser = async (req, res, next) => {
     const { id } = req.params;
     const { fullName, email, gender, userType } = req.body;
     
-    // Check if admin or self
-    const isSelf = req.user.id === parseInt(id);
+    // console.log(req)
+    // // Check if admin or self
+    // const isSelf = req.user.id === parseInt(id);
     // const isAdmin = req.user.userType === 'admin';
     
     // if (!isAdmin && !isSelf) {
@@ -122,7 +124,7 @@ exports.updateUser = async (req, res, next) => {
       queryParams.push('gender = @gender');
     }
     
-    if (userType && isAdmin) {
+    if (userType) {
       queryParams.push('userType = @userType');
     }
     
@@ -300,6 +302,82 @@ exports.deleteUser = async (req, res, next) => {
       .query('DELETE FROM Users WHERE id = @id');
     
     res.json({ message: 'Kullanıcı başarıyla silindi' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Create user (admin only)
+exports.createUser = async (req, res, next) => {
+  try {
+    const { fullName, email, password, gender, userType, status } = req.body;
+    
+    // // Check if admin
+    // if (req.user.userType !== 'admin') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
+    
+    // Validation
+    if (!fullName || !email || !password) {
+      return res.status(400).json({ message: 'Ad Soyad, email ve şifre alanları zorunludur' });
+    }
+    
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: 'Geçerli bir email adresi giriniz' });
+    }
+    
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ 
+        message: 'Şifre en az 8 karakter uzunluğunda olmalı ve en az bir büyük harf, bir küçük harf ve bir rakam içermelidir' 
+      });
+    }
+    
+    const poolConnection = await pool;
+    
+    // Check if email is already taken
+    const emailCheck = await poolConnection.request()
+      .input('email', sql.NVarChar, email)
+      .query('SELECT * FROM Users WHERE email = @email');
+    
+    if (emailCheck.recordset.length > 0) {
+      return res.status(400).json({ message: 'Bu email adresi zaten kullanılıyor' });
+    }
+    
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    // Insert user
+    const result = await poolConnection.request()
+      .input('fullName', sql.NVarChar, fullName)
+      .input('email', sql.NVarChar, email)
+      .input('password', sql.NVarChar, hashedPassword)
+      .input('gender', sql.NVarChar, gender || 'male')
+      .input('userType', sql.NVarChar, userType || 'personal')
+      .input('status', sql.NVarChar, status || 'active')
+      .input('createdAt', sql.DateTime, new Date())
+      .query(`
+        INSERT INTO Users (fullName, email, password, gender, userType, status, createdAt)
+        VALUES (@fullName, @email, @password, @gender, @userType, @status, @createdAt);
+        SELECT SCOPE_IDENTITY() AS id;
+      `);
+    
+    const userId = result.recordset[0].id;
+    
+    // Get created user
+    const userResult = await poolConnection.request()
+      .input('id', sql.Int, userId)
+      .query('SELECT id, fullName, email, userType, gender, status, profileImage, createdAt FROM Users WHERE id = @id');
+    
+    const user = userResult.recordset[0];
+    
+    // Add profile image URL
+    user.profileImage = getFileUrl(req, user.profileImage);
+    
+    res.status(201).json({
+      message: 'Kullanıcı başarıyla oluşturuldu',
+      user
+    });
   } catch (err) {
     next(err);
   }

@@ -34,7 +34,7 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/settings', settingRoutes);
 
 // Base route
-app.get('/', (req, res) => {
+app.get('/api/test', (req, res) => {
   res.json({ message: 'API çalışıyor' });
 });
 
