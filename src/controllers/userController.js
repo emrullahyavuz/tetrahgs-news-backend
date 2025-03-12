@@ -6,16 +6,16 @@ const { deleteFile, getFileUrl } = require('../utils/fileUtils');
 // Get all users (admin only)
 exports.getAllUsers = async (req, res, next) => {
   try {
-    // Check if admin
-    if (req.user.userType !== 'admin') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // // Check if admin
+    // if (req.user.userType !== 'admin') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const poolConnection = await pool;
     
     // Get users
     const result = await poolConnection.request()
-      .query('SELECT id, fullName, email, userType, gender, profileImage, createdAt, lastLogin FROM Users ORDER BY createdAt DESC');
+      .query('SELECT id, fullName, email, userType, gender,status,articles, profileImage, createdAt, lastLogin FROM Users ORDER BY createdAt DESC');
     
     // Add profile image URL
     const users = result.recordset.map(user => ({
@@ -34,10 +34,10 @@ exports.getUserById = async (req, res, next) => {
   try {
     const { id } = req.params;
     
-    // Check if admin or self
-    if (req.user.userType !== 'admin' && req.user.id !== parseInt(id)) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // // Check if admin or self
+    // if (req.user.userType !== 'admin' && req.user.id !== parseInt(id)) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const poolConnection = await pool;
     
@@ -69,16 +69,16 @@ exports.updateUser = async (req, res, next) => {
     
     // Check if admin or self
     const isSelf = req.user.id === parseInt(id);
-    const isAdmin = req.user.userType === 'admin';
+    // const isAdmin = req.user.userType === 'admin';
     
-    if (!isAdmin && !isSelf) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (!isAdmin && !isSelf) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
-    // Only admin can change userType
-    if (userType && !isAdmin) {
-      return res.status(403).json({ message: 'Kullanıcı tipini değiştirmek için admin yetkisi gereklidir' });
-    }
+    // // Only admin can change userType
+    // if (userType && !isAdmin) {
+    //   return res.status(403).json({ message: 'Kullanıcı tipini değiştirmek için admin yetkisi gereklidir' });
+    // }
     
     const poolConnection = await pool;
     
@@ -138,7 +138,7 @@ exports.updateUser = async (req, res, next) => {
     if (fullName) request.input('fullName', sql.NVarChar, fullName);
     if (email) request.input('email', sql.NVarChar, email);
     if (gender) request.input('gender', sql.NVarChar, gender);
-    if (userType && isAdmin) request.input('userType', sql.NVarChar, userType);
+    if (userType) request.input('userType', sql.NVarChar, userType);
     
     await request.query(updateQuery);
     
@@ -272,10 +272,10 @@ exports.deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params;
     
-    // Check if admin or self
-    if (req.user.userType !== 'admin' && req.user.id !== parseInt(id)) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // // Check if admin or self
+    // if (req.user.userType !== 'admin' && req.user.id !== parseInt(id)) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const poolConnection = await pool;
     
