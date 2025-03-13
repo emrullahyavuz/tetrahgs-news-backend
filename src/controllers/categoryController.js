@@ -80,10 +80,10 @@ exports.getCategoryBySlug = async (req, res, next) => {
 // Create category
 exports.createCategory = async (req, res, next) => {
   try {
-    // Check if admin or editor
-    if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // // Check if admin or editor
+    // if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const { name, slug, description } = req.body;
     
@@ -135,10 +135,10 @@ exports.createCategory = async (req, res, next) => {
 // Update category
 exports.updateCategory = async (req, res, next) => {
   try {
-    // Check if admin or editor
-    if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // // Check if admin or editor
+    // if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const { id } = req.params;
     const { name, slug, description } = req.body;
@@ -159,16 +159,19 @@ exports.updateCategory = async (req, res, next) => {
       return res.status(404).json({ message: 'Kategori bulunamadı' });
     }
     
-    // Check if slug exists
+    
+    // Check if slug exists and is different from the current category slug
     if (slug && slug !== categoryCheck.recordset[0].slug) {
       const slugCheck = await poolConnection.request()
         .input('slug', sql.NVarChar, slug)
+        .input('id', sql.Int, categoryCheck.recordset[0].id) // ID'yi tanımlıyoruz
         .query('SELECT * FROM Categories WHERE slug = @slug AND id != @id');
-      
+
       if (slugCheck.recordset.length > 0) {
         return res.status(400).json({ message: 'Bu slug zaten kullanılıyor' });
       }
     }
+
     
     // Build update query
     let updateQuery = 'UPDATE Categories SET ';
@@ -218,10 +221,10 @@ exports.updateCategory = async (req, res, next) => {
 // Delete category
 exports.deleteCategory = async (req, res, next) => {
   try {
-    // Check if admin
-    if (req.user.userType !== 'admin') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // // Check if admin
+    // if (req.user.userType !== 'admin') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const { id } = req.params;
     

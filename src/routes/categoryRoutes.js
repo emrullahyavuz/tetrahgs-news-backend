@@ -21,16 +21,16 @@ router.get('/slug/:slug', categoryController.getCategoryBySlug);
 // @route   POST /api/categories
 // @desc    Create category
 // @access  Private (Admin, Editor)
-router.post('/', auth, categoryController.createCategory);
+router.post('/', categoryController.createCategory);
 
 // @route   PUT /api/categories/:id
 // @desc    Update category
 // @access  Private (Admin, Editor)
-router.put('/:id', auth, categoryController.updateCategory);
+router.put('/:id', categoryController.updateCategory);
 
 // @route   DELETE /api/categories/:id
 // @desc    Delete category
 // @access  Private (Admin)
-router.delete('/:id', auth, categoryController.deleteCategory);
+router.delete('/:id', categoryController.deleteCategory);
 
 module.exports = router;

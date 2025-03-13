@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { pool, sql } = require('../config/database');
 const { isValidEmail, isValidPassword } = require('../utils/validationUtils');
 const { deleteFile, getFileUrl } = require('../utils/fileUtils');
+const { hashPassword } = require('../utils/passwordUtils');
 
 // Get all users (admin only)
 exports.getAllUsers = async (req, res, next) => {
@@ -62,98 +63,77 @@ exports.getUserById = async (req, res, next) => {
   }
 };
 
-// Update user
 exports.updateUser = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Geçerli bir kullanıcı ID'si girilmelidir." });
+    }
+
     const { fullName, email, gender, userType } = req.body;
-    
-    // console.log(req)
-    // // Check if admin or self
-    // const isSelf = req.user.id === parseInt(id);
-    // const isAdmin = req.user.userType === 'admin';
-    
-    // if (!isAdmin && !isSelf) {
-    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    // }
-    
-    // // Only admin can change userType
-    // if (userType && !isAdmin) {
-    //   return res.status(403).json({ message: 'Kullanıcı tipini değiştirmek için admin yetkisi gereklidir' });
-    // }
-    
+
     const poolConnection = await pool;
-    
+
     // Check if user exists
     const userCheck = await poolConnection.request()
       .input('id', sql.Int, id)
       .query('SELECT * FROM Users WHERE id = @id');
-    
+
     if (userCheck.recordset.length === 0) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
-    
+
     // Check if email is already taken
     if (email && email !== userCheck.recordset[0].email) {
       if (!isValidEmail(email)) {
         return res.status(400).json({ message: 'Geçerli bir email adresi giriniz' });
       }
-      
+
       const emailCheck = await poolConnection.request()
         .input('email', sql.NVarChar, email)
+        .input('id', sql.Int, id)  // Burada id eklenmeli
         .query('SELECT * FROM Users WHERE email = @email AND id != @id');
-      
+
       if (emailCheck.recordset.length > 0) {
         return res.status(400).json({ message: 'Bu email adresi zaten kullanılıyor' });
       }
     }
-    
+
     // Build update query
     let updateQuery = 'UPDATE Users SET ';
     const queryParams = [];
-    
-    if (fullName) {
-      queryParams.push('fullName = @fullName');
-    }
-    
-    if (email) {
-      queryParams.push('email = @email');
-    }
-    
-    if (gender) {
-      queryParams.push('gender = @gender');
-    }
-    
-    if (userType) {
-      queryParams.push('userType = @userType');
-    }
-    
+
+    if (fullName) queryParams.push('fullName = @fullName');
+    if (email) queryParams.push('email = @email');
+    if (gender) queryParams.push('gender = @gender');
+    if (userType) queryParams.push('userType = @userType');
+
     queryParams.push('updatedAt = @updatedAt');
-    
+
     updateQuery += queryParams.join(', ') + ' WHERE id = @id';
-    
+
     // Update user
     const request = poolConnection.request()
-      .input('id', sql.Int, id)
+      .input('id', sql.Int, id) // Burada id'yi ekledik
       .input('updatedAt', sql.DateTime, new Date());
-    
+
     if (fullName) request.input('fullName', sql.NVarChar, fullName);
     if (email) request.input('email', sql.NVarChar, email);
     if (gender) request.input('gender', sql.NVarChar, gender);
     if (userType) request.input('userType', sql.NVarChar, userType);
-    
+
     await request.query(updateQuery);
-    
+
     // Get updated user
     const result = await poolConnection.request()
-      .input('id', sql.Int, id)
+      .input('id', sql.Int, id) // Burada da id ekledik
       .query('SELECT id, fullName, email, userType, gender, profileImage, createdAt, updatedAt, lastLogin FROM Users WHERE id = @id');
-    
+
     const user = result.recordset[0];
-    
+
     // Add profile image URL
     user.profileImage = getFileUrl(req, user.profileImage);
-    
+
     res.json({
       message: 'Kullanıcı başarıyla güncellendi',
       user
@@ -344,8 +324,9 @@ exports.createUser = async (req, res, next) => {
     }
     
     // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // const salt = await bcrypt.genSalt(10);
+    // const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await hashPassword(password)
     
     // Insert user
     const result = await poolConnection.request()
