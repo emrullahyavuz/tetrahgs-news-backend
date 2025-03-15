@@ -70,7 +70,7 @@ exports.updateUser = async (req, res, next) => {
       return res.status(400).json({ message: "Geçerli bir kullanıcı ID'si girilmelidir." });
     }
 
-    const { fullName, email, gender, userType } = req.body;
+    const { fullName, email, gender, userType, status} = req.body;
 
     const poolConnection = await pool;
 
@@ -91,7 +91,7 @@ exports.updateUser = async (req, res, next) => {
 
       const emailCheck = await poolConnection.request()
         .input('email', sql.NVarChar, email)
-        .input('id', sql.Int, id)  // Burada id eklenmeli
+        .input('id', sql.Int, id)  
         .query('SELECT * FROM Users WHERE email = @email AND id != @id');
 
       if (emailCheck.recordset.length > 0) {
@@ -107,6 +107,7 @@ exports.updateUser = async (req, res, next) => {
     if (email) queryParams.push('email = @email');
     if (gender) queryParams.push('gender = @gender');
     if (userType) queryParams.push('userType = @userType');
+    if (status) queryParams.push('status = @status');
 
     queryParams.push('updatedAt = @updatedAt');
 
@@ -121,13 +122,14 @@ exports.updateUser = async (req, res, next) => {
     if (email) request.input('email', sql.NVarChar, email);
     if (gender) request.input('gender', sql.NVarChar, gender);
     if (userType) request.input('userType', sql.NVarChar, userType);
+    if (status) request.input('status', sql.NVarChar, status);
 
     await request.query(updateQuery);
 
     // Get updated user
     const result = await poolConnection.request()
       .input('id', sql.Int, id) // Burada da id ekledik
-      .query('SELECT id, fullName, email, userType, gender, profileImage, createdAt, updatedAt, lastLogin FROM Users WHERE id = @id');
+      .query('SELECT id, fullName, email, userType, status, gender, profileImage, createdAt, updatedAt, lastLogin FROM Users WHERE id = @id');
 
     const user = result.recordset[0];
 

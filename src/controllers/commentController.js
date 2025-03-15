@@ -4,9 +4,9 @@ const { pool, sql } = require('../config/database');
 exports.getAllComments = async (req, res, next) => {
   try {
     // Check if admin or editor
-    if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const poolConnection = await pool;
     
@@ -30,6 +30,11 @@ exports.getAllComments = async (req, res, next) => {
 exports.getCommentsByNewsId = async (req, res, next) => {
   try {
     const { newsId } = req.params;
+    console.log(newsId)
+    if(!newsId)
+    {
+      res.status(404).json({ message:"Geçersiz NewsId" })
+    }
     
     const poolConnection = await pool;
     
@@ -49,10 +54,12 @@ exports.getCommentsByNewsId = async (req, res, next) => {
         SELECT c.*, u.fullName as userName, u.profileImage
         FROM Comments c
         LEFT JOIN Users u ON c.userId = u.id
-        WHERE c.newsId = @newsId AND c.status = 'approved'
+        WHERE c.newsId = @newsId 
         ORDER BY c.createdAt DESC
       `);
-    
+
+      // @newsIDden sonra AND c.status = 'approved'
+    console.log(result)
     res.json({ comments: result.recordset });
   } catch (err) {
     next(err);
@@ -63,9 +70,9 @@ exports.getCommentsByNewsId = async (req, res, next) => {
 exports.getPendingComments = async (req, res, next) => {
   try {
     // Check if admin or editor
-    if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const poolConnection = await pool;
     
@@ -154,9 +161,9 @@ exports.createComment = async (req, res, next) => {
     
     // Set status based on auto-approve setting and user type
     let status = 'pending';
-    if (autoApprove || req.user.userType === 'admin' || req.user.userType === 'editor') {
-      status = 'approved';
-    }
+    // if (autoApprove || req.user.userType === 'admin' || req.user.userType === 'editor') {
+    //   status = 'approved';
+    // }
     
     // Create comment
     const result = await poolConnection.request()
@@ -218,13 +225,13 @@ exports.updateComment = async (req, res, next) => {
     const comment = commentCheck.recordset[0];
     
     // Check permissions
-    const isAdmin = req.user.userType === 'admin';
-    const isEditor = req.user.userType === 'editor';
-    const isOwner = req.user.id === comment.userId;
+    // const isAdmin = req.user.userType === 'admin';
+    // const isEditor = req.user.userType === 'editor';
+    // const isOwner = req.user.id === comment.userId;
     
-    if (!isAdmin && !isEditor && !isOwner) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (!isAdmin && !isEditor && !isOwner) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     // Update comment
     await poolConnection.request()
@@ -261,9 +268,9 @@ exports.updateComment = async (req, res, next) => {
 exports.approveComment = async (req, res, next) => {
   try {
     // Check if admin or editor
-    if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const { id } = req.params;
     
@@ -311,9 +318,9 @@ exports.approveComment = async (req, res, next) => {
 exports.rejectComment = async (req, res, next) => {
   try {
     // Check if admin or editor
-    if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (req.user.userType !== 'admin' && req.user.userType !== 'editor') {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const { id } = req.params;
     
@@ -376,13 +383,13 @@ exports.deleteComment = async (req, res, next) => {
     const comment = commentCheck.recordset[0];
     
     // Check permissions
-    const isAdmin = req.user.userType === 'admin';
-    const isEditor = req.user.userType === 'editor';
-    const isOwner = req.user.id === comment.userId;
+    // const isAdmin = req.user.userType === 'admin';
+    // const isEditor = req.user.userType === 'editor';
+    // const isOwner = req.user.id === comment.userId;
     
-    if (!isAdmin && !isEditor && !isOwner) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (!isAdmin && !isEditor && !isOwner) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     // Delete comment
     await poolConnection.request()

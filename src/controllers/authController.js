@@ -44,6 +44,8 @@ exports.register = async (req, res, next) => {
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+
+   
     
     // Create user
     const result = await poolConnection.request()
@@ -232,7 +234,7 @@ exports.refreshToken = async (req, res, next) => {
     
     // Verify refresh token
     const user = await verifyRefreshToken(refreshToken);
-    
+    console.log(user)
     // Generate new tokens
     const newToken = generateToken(user);
     const newRefreshToken = generateRefreshToken(user.id);
