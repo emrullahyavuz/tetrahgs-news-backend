@@ -31,11 +31,11 @@ router.post('/logout', authController.logout);
 // @route   POST /api/auth/logout-all
 // @desc    Logout from all devices
 // @access  Private
-router.post('/logout-all', auth, authController.logoutAll);
+router.post('/logout-all', authController.logoutAll);
 
 // @route   GET /api/auth/me
 // @desc    Get current user
 // @access  Private
-router.get('/me', auth, authController.getCurrentUser);
+router.get('/me', authController.getCurrentUser);
 
 module.exports = router;

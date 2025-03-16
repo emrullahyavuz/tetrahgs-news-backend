@@ -4,6 +4,7 @@ const path = require('path');
 const { pool } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const {logger} = require("./middleware/logEvents")
+const corsOptions = require("./config/corsConfig")
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -17,7 +18,7 @@ const settingRoutes = require('./routes/settingRoutes');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
