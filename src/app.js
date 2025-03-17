@@ -22,6 +22,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Logger
+app.use(logger)
+
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -41,7 +44,5 @@ app.get('/api/test', (req, res) => {
 
 // Error handler
 app.use(errorHandler);
-// Logger
-app.use(logger)
 
 module.exports = app;

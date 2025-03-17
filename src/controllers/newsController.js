@@ -25,23 +25,23 @@ exports.getAllNews = async (req, res, next) => {
       FROM News n
       LEFT JOIN Categories c ON n.categoryId = c.id
       LEFT JOIN Users u ON n.authorId = u.id
-      LEFT JOIN Comments com ON n.id = com.newsId AND com.status = 'approved'
+      LEFT JOIN Comments com ON n.id = com.newsId 
     `;
-    
+    // AND com.status = 'approved'
     // Build where clause
     const whereConditions = [];
     const queryParams = {};
     
     // Filter by status (admin/editor only)
-    if (req.user && (req.user.userType === 'admin' || req.user.userType === 'editor')) {
-      if (status) {
-        whereConditions.push('n.status = @status');
-        queryParams.status = status;
-      }
-    } else {
-      // Public can only see published news
-      whereConditions.push("n.status = 'published'");
-    }
+    // if (req.user && (req.user.userType === 'admin' || req.user.userType === 'editor')) {
+    //   if (status) {
+    //     whereConditions.push('n.status = @status');
+    //     queryParams.status = status;
+    //   }
+    // } else {
+    //   // Public can only see published news
+    //   whereConditions.push("n.status = 'published'");
+    // }
     
     // Filter by category
     if (category) {
@@ -183,10 +183,10 @@ exports.getNewsById = async (req, res, next) => {
     const news = result.recordset[0];
     
     // Check if user can view unpublished news
-    if (news.status !== 'published' && 
-        (!req.user || (req.user.userType !== 'admin' && req.user.userType !== 'editor' && req.user.id !== news.authorId))) {
-      return res.status(403).json({ message: 'Bu haberi görüntüleme yetkiniz bulunmamaktadır' });
-    }
+    // if (news.status !== 'published' && 
+    //     (!req.user || (req.user.userType !== 'admin' && req.user.userType !== 'editor' && req.user.id !== news.authorId))) {
+    //   return res.status(403).json({ message: 'Bu haberi görüntüleme yetkiniz bulunmamaktadır' });
+    // }
     
     // Get tags
     const tagsResult = await poolConnection.request()
@@ -246,10 +246,10 @@ exports.getNewsBySlug = async (req, res, next) => {
     const news = result.recordset[0];
     
     // Check if user can view unpublished news
-    if (news.status !== 'published' && 
-        (!req.user || (req.user.userType !== 'admin' && req.user.userType !== 'editor' && req.user.id !== news.authorId))) {
-      return res.status(403).json({ message: 'Bu haberi görüntüleme yetkiniz bulunmamaktadır' });
-    }
+    // if (news.status !== 'published' && 
+    //     (!req.user || (req.user.userType !== 'admin' && req.user.userType !== 'editor' && req.user.id !== news.authorId))) {
+    //   return res.status(403).json({ message: 'Bu haberi görüntüleme yetkiniz bulunmamaktadır' });
+    // }
     
     // Get tags
     const tagsResult = await poolConnection.request()
@@ -283,9 +283,9 @@ exports.getNewsBySlug = async (req, res, next) => {
 exports.createNews = async (req, res, next) => {
   try {
     // Check if admin, editor or author
-    if (!req.user || (req.user.userType !== 'admin' && req.user.userType !== 'editor' && req.user.userType !== 'author')) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (!req.user || (req.user.userType !== 'admin' && req.user.userType !== 'editor' && req.user.userType !== 'author')) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
     const { 
       title, 
@@ -432,14 +432,14 @@ exports.updateNews = async (req, res, next) => {
     const isEditor = req.user.userType === 'editor';
     const isAuthor = req.user.id === news.authorId;
     
-    if (!isAdmin && !isEditor && !isAuthor) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (!isAdmin && !isEditor && !isAuthor) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
-    // Authors can only edit their own drafts
-    if (isAuthor && !isAdmin && !isEditor && news.status !== 'draft') {
-      return res.status(403).json({ message: 'Sadece taslak haberlerinizi düzenleyebilirsiniz' });
-    }
+    // // Authors can only edit their own drafts
+    // if (isAuthor && !isAdmin && !isEditor && news.status !== 'draft') {
+    //   return res.status(403).json({ message: 'Sadece taslak haberlerinizi düzenleyebilirsiniz' });
+    // }
     
     // Check if slug exists
     if (slug && slug !== news.slug) {
@@ -615,14 +615,14 @@ exports.deleteNews = async (req, res, next) => {
     const isEditor = req.user.userType === 'editor';
     const isAuthor = req.user.id === news.authorId;
     
-    if (!isAdmin && !isEditor && !isAuthor) {
-      return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
-    }
+    // if (!isAdmin && !isEditor && !isAuthor) {
+    //   return res.status(403).json({ message: 'Bu işlem için yetkiniz bulunmamaktadır' });
+    // }
     
-    // Authors can only delete their own drafts
-    if (isAuthor && !isAdmin && !isEditor && news.status !== 'draft') {
-      return res.status(403).json({ message: 'Sadece taslak haberlerinizi silebilirsiniz' });
-    }
+    // // Authors can only delete their own drafts
+    // if (isAuthor && !isAdmin && !isEditor && news.status !== 'draft') {
+    //   return res.status(403).json({ message: 'Sadece taslak haberlerinizi silebilirsiniz' });
+    // }
     
     // Delete featured image
     if (news.featuredImage) {

@@ -292,7 +292,7 @@ exports.logoutAll = async (req, res, next) => {
 // Get current user
 exports.getCurrentUser = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.body.id;
     
     const poolConnection = await pool;
     

@@ -121,7 +121,8 @@ exports.getUserComments = async (req, res, next) => {
 exports.createComment = async (req, res, next) => {
   try {
     const { content, newsId } = req.body;
-    const userId = req.user.id;
+    const userId = req.body.id;
+    console.log(userId)
     
     // Validation
     if (!content) {
