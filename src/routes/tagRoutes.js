@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const tagController = require('../controllers/tagController');
-const auth = require('../middleware/auth');
+const {admin} = require('../middleware/auth');
 
 // @route   GET /api/tags
 // @desc    Get all tags
@@ -21,17 +21,17 @@ router.get('/slug/:slug', tagController.getTagBySlug);
 // @route   POST /api/tags
 // @desc    Create tag
 // @access  Private (Admin, Editor)
-router.post('/', auth, tagController.createTag);
+router.post('/', admin, tagController.createTag);
 
 // @route   PUT /api/tags/:id
 // @desc    Update tag
 // @access  Private (Admin, Editor)
-router.put('/:id', auth, tagController.updateTag);
+router.put('/:id', admin, tagController.updateTag);
 
 // @route   DELETE /api/tags/:id
 // @desc    Delete tag
 // @access  Private (Admin, Editor)
-router.delete('/:id', auth, tagController.deleteTag);
+router.delete('/:id', admin, tagController.deleteTag);
 
 // @route   GET /api/tags/news/:slug
 // @desc    Get news by tag

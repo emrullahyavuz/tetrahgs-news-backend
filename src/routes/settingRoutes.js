@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const settingController = require('../controllers/settingController');
-const auth = require('../middleware/auth');
+const {admin} = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
 // @route   GET /api/settings
@@ -17,16 +17,16 @@ router.get('/:key', settingController.getSettingByKey);
 // @route   PUT /api/settings
 // @desc    Update settings
 // @access  Private (Admin)
-router.put('/', auth, settingController.updateSettings);
+router.put('/', admin, settingController.updateSettings);
 
 // @route   POST /api/settings/logo
 // @desc    Upload site logo
 // @access  Private (Admin)
-router.post('/logo', auth, upload.single('logo'), settingController.uploadSiteLogo);
+router.post('/logo', admin, upload.single('logo'), settingController.uploadSiteLogo);
 
 // @route   DELETE /api/settings/:key
 // @desc    Delete setting
 // @access  Private (Admin)
-router.delete('/:key', auth, settingController.deleteSetting);
+router.delete('/:key', admin, settingController.deleteSetting);
 
 module.exports = router;

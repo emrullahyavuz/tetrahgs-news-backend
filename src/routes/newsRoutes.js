@@ -1,47 +1,45 @@
-const express = require('express');
-const router = express.Router();
-const newsController = require('../controllers/newsController');
-const auth = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const express = require("express")
+const router = express.Router()
+const newsController = require("../controllers/newsController")
+const { protect, editor } = require("../middleware/auth")
 
 // @route   GET /api/news
-// @desc    Get all news
+// @desc    Tüm haberleri getir (filtreleme ve arama desteği ile)
 // @access  Public
-router.get('/', newsController.getAllNews);
+router.get("/", newsController.getNews)
 
 // @route   GET /api/news/:id
-// @desc    Get news by ID
+// @desc    Belirli bir haberi getir
 // @access  Public
-router.get('/:id', newsController.getNewsById);
-
-// @route   GET /api/news/slug/:slug
-// @desc    Get news by slug
-// @access  Public
-router.get('/slug/:slug', newsController.getNewsBySlug);
+router.get("/:id", newsController.getNewsById)
 
 // @route   POST /api/news
-// @desc    Create news
-// @access  Private (Admin, Editor, Author)
-router.post('/', auth, upload.single('featuredImage'), newsController.createNews);
+// @desc    Yeni haber ekle
+// @access  Editor/Admin
+router.post("/", newsController.createNews)
+// protect, editor, 
 
 // @route   PUT /api/news/:id
-// @desc    Update news
-// @access  Private (Admin, Editor, Author of draft)
-router.put('/:id', auth, upload.single('featuredImage'), newsController.updateNews);
+// @desc    Haberi güncelle
+// @access  Editor/Admin
+router.put("/:id", newsController.updateNews)
+// protect, editor, 
 
 // @route   DELETE /api/news/:id
-// @desc    Delete news
-// @access  Private (Admin, Editor, Author of draft)
-router.delete('/:id', auth, newsController.deleteNews);
+// @desc    Haberi sil
+// @access  Editor/Admin
+router.delete("/:id", newsController.deleteNews)
+// protect, editor, 
 
-// @route   GET /api/news/:id/related
-// @desc    Get related news
+// @route   GET /api/news/categories
+// @desc    Tüm kategorileri getir
 // @access  Public
-router.get('/:id/related', newsController.getRelatedNews);
+router.get("/categories/all", newsController.getCategories)
 
-// @route   GET /api/news/popular
-// @desc    Get popular news
-// @access  Public
-router.get('/popular', newsController.getPopularNews);
+// @route   PUT /api/news/:id/status
+// @desc    Haber durumunu güncelle
+// @access  Editor/Admin
+router.put("/:id/status", protect, editor, newsController.updateNewsStatus)
 
-module.exports = router;
+module.exports = router
+
