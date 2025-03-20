@@ -1,5 +1,5 @@
 const { pool, sql } = require("../config/database")
-const { createSlug, paginateResults } = require("../utils/helpers")
+const { createSlug } = require("../utils/helpers")
 
 // Tüm haberleri getir (filtreleme ve arama desteği ile)
 exports.getNews = async (req, res, next) => {
@@ -12,7 +12,7 @@ exports.getNews = async (req, res, next) => {
     let query = `
       SELECT n.id, n.title, n.summary, n.content, n.slug, n.status, 
              n.imageUrl, n.createdAt, n.updatedAt, n.viewCount,
-             c.name as category, u.fullName as author, u.id as authorId
+             c.name as category, c.id as categoryId, u.fullName as author, u.id as authorId
       FROM News n
       LEFT JOIN Categories c ON n.categoryId = c.id
       LEFT JOIN Users u ON n.authorId = u.id
@@ -56,7 +56,7 @@ exports.getNews = async (req, res, next) => {
     const countQuery = query.replace(
       "SELECT n.id, n.title, n.summary, n.content, n.slug, n.status, \
              n.imageUrl, n.createdAt, n.updatedAt, n.viewCount, \
-             c.name as category, u.fullName as author, u.id as authorId",
+             c.name as category, c.id as categoryId, u.fullName as author, u.id as authorId",
       "SELECT COUNT(*) as total",
     )
 
@@ -66,7 +66,7 @@ exports.getNews = async (req, res, next) => {
     })
 
     const countResult = await countRequest.query(countQuery)
-    
+
     const totalItems = countResult.recordset[0].total
 
     // Sıralama
@@ -87,8 +87,8 @@ exports.getNews = async (req, res, next) => {
     // Tarihleri formatla
     const news = result.recordset.map((item) => ({
       ...item,
-      createdAt: item.createdAt.toISOString().split("T")[0],
-      updatedAt: item.updatedAt ? item.updatedAt.toISOString().split("T")[0] : null,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
     }))
 
     // Sayfalama bilgilerini ekle
@@ -138,9 +138,16 @@ exports.getNewsById = async (req, res, next) => {
     }
 
     // Görüntülenme sayısını artır
-    await poolConnection.request().input("id", sql.Int, id).query("UPDATE News SET viewCount = viewCount + 1 WHERE id = @id")
+    await poolConnection
+      .request()
+      .input("id", sql.Int, id)
+      .query("UPDATE News SET viewCount = viewCount + 1 WHERE id = @id")
 
-    const news = result.recordset[0]
+    const news = {
+      ...result.recordset[0],
+      createdAt: result.recordset[0].createdAt.toISOString(),
+      updatedAt: result.recordset[0].updatedAt ? result.recordset[0].updatedAt.toISOString() : null,
+    }
 
     res.json({
       success: true,
@@ -179,7 +186,7 @@ exports.createNews = async (req, res, next) => {
       .input("categoryId", sql.Int, categoryId)
       .input("status", sql.NVarChar, status)
       .input("imageUrl", sql.NVarChar, imageUrl || null)
-      .input("authorId", sql.Int, 11)
+      .input("authorId", sql.Int, req.user.id)
       .input("createdAt", sql.DateTime, new Date())
       .input("viewCount", sql.Int, 0)
       .query(`
@@ -204,7 +211,7 @@ exports.createNews = async (req, res, next) => {
         status,
         imageUrl,
         authorId: req.user.id,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       },
     })
   } catch (err) {
@@ -239,6 +246,23 @@ exports.updateNews = async (req, res, next) => {
         success: false,
         message: "Haber bulunamadı",
       })
+    }
+
+    // Yetki kontrolü - Sadece admin her haberi düzenleyebilir
+    // Editor ise sadece kendi haberlerini düzenleyebilir
+    if (req.user.roleId !== 1) {
+      const authorCheck = await poolConnection
+        .request()
+        .input("id", sql.Int, id)
+        .input("authorId", sql.Int, req.user.id)
+        .query("SELECT * FROM News WHERE id = @id AND authorId = @authorId")
+
+      if (authorCheck.recordset.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Bu haberi düzenleme yetkiniz yok",
+        })
+      }
     }
 
     // Slug oluştur
@@ -281,7 +305,7 @@ exports.updateNews = async (req, res, next) => {
         categoryId,
         status,
         imageUrl,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       },
     })
   } catch (err) {
@@ -307,6 +331,23 @@ exports.deleteNews = async (req, res, next) => {
         success: false,
         message: "Haber bulunamadı",
       })
+    }
+
+    // Yetki kontrolü - Sadece admin her haberi silebilir
+    // Editor ise sadece kendi haberlerini silebilir
+    if (req.user.roleId !== 1) {
+      const authorCheck = await poolConnection
+        .request()
+        .input("id", sql.Int, id)
+        .input("authorId", sql.Int, req.user.id)
+        .query("SELECT * FROM News WHERE id = @id AND authorId = @authorId")
+
+      if (authorCheck.recordset.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Bu haberi silme yetkiniz yok",
+        })
+      }
     }
 
     // Haberi sil
@@ -365,6 +406,23 @@ exports.updateNewsStatus = async (req, res, next) => {
       })
     }
 
+    // Yetki kontrolü - Sadece admin her haberin durumunu değiştirebilir
+    // Editor ise sadece kendi haberlerinin durumunu değiştirebilir
+    if (req.user.roleId !== 1) {
+      const authorCheck = await poolConnection
+        .request()
+        .input("id", sql.Int, id)
+        .input("authorId", sql.Int, req.user.id)
+        .query("SELECT * FROM News WHERE id = @id AND authorId = @authorId")
+
+      if (authorCheck.recordset.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Bu haberin durumunu değiştirme yetkiniz yok",
+        })
+      }
+    }
+
     // Durumu güncelle
     await poolConnection
       .request()
@@ -384,7 +442,7 @@ exports.updateNewsStatus = async (req, res, next) => {
       data: {
         id: Number.parseInt(id),
         status,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       },
     })
   } catch (err) {

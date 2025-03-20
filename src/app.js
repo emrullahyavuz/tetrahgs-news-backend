@@ -12,6 +12,7 @@ const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const newsRoutes = require('./routes/newsRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const tagRoutes = require('./routes/tagRoutes');
 const settingRoutes = require('./routes/settingRoutes');
 
@@ -34,6 +35,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/comments', commentRoutes);
+app.use("/api/dashboard", dashboardRoutes)
 app.use('/api/tags', tagRoutes);
 app.use('/api/settings', settingRoutes);
 

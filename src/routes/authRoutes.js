@@ -6,12 +6,12 @@ const auth = require('../middleware/auth');
 // @route   POST /api/auth/register
 // @desc    Register user
 // @access  Public
-router.post('/register', authController.register);
+// router.post('/register', authController.register);
 
 // @route   POST /api/auth/register-admin
 // @desc    Register admin
 // @access  Public (should be restricted in production)
-router.post('/register-admin', authController.registerAdmin);
+// router.post('/register-admin', authController.registerAdmin);
 
 // @route   POST /api/auth/login
 // @desc    Login user

@@ -15,7 +15,7 @@ const generateToken = (user) => {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        userType: user.userType
+        userType: user.role
       } 
     },
     JWT_SECRET,

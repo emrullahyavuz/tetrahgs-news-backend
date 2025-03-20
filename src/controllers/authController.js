@@ -1,315 +1,196 @@
-const bcrypt = require('bcryptjs');
-const { pool, sql } = require('../config/database');
-const { 
-  generateToken, 
-  generateRefreshToken, 
-  saveRefreshToken,
-  verifyRefreshToken,
-  deleteRefreshToken,
-  deleteAllUserRefreshTokens
-} = require('../utils/tokenUtils');
-const { isValidEmail, isValidPassword } = require('../utils/validationUtils');
+const bcrypt = require("bcryptjs")
+const jwt = require("jsonwebtoken")
+const { pool, sql } = require("../config/database")
 
-// Register user
-exports.register = async (req, res, next) => {
-  try {
-    const { fullName, email, password, gender } = req.body;
-    
-    // Validation
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ message: 'Tüm alanları doldurunuz' });
-    }
-    
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ message: 'Geçerli bir email adresi giriniz' });
-    }
-    
-    if (!isValidPassword(password)) {
-      return res.status(400).json({ 
-        message: 'Şifre en az 8 karakter uzunluğunda olmalı ve en az bir büyük harf, bir küçük harf ve bir rakam içermelidir' 
-      });
-    }
-    
-    const poolConnection = await pool;
-    
-    // Check if user exists
-    const userCheck = await poolConnection.request()
-      .input('email', sql.NVarChar, email)
-      .query('SELECT * FROM Users WHERE email = @email');
-    
-    if (userCheck.recordset.length > 0) {
-      return res.status(400).json({ message: 'Bu email adresi zaten kullanılıyor' });
-    }
-    
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret"
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your_refresh_secret"
+const JWT_EXPIRE = process.env.JWT_EXPIRE || "1d"
 
-   
-    
-    // Create user
-    const result = await poolConnection.request()
-      .input('fullName', sql.NVarChar, fullName)
-      .input('email', sql.NVarChar, email)
-      .input('password', sql.NVarChar, hashedPassword)
-      .input('gender', sql.NVarChar, gender || null)
-      .input('userType', sql.NVarChar, 'user')
-      .input('createdAt', sql.DateTime, new Date())
-      .query(`
-        INSERT INTO Users (fullName, email, password, gender, userType, createdAt)
-        VALUES (@fullName, @email, @password, @gender, @userType, @createdAt);
-        
-        SELECT SCOPE_IDENTITY() AS id;
-      `);
-    
-    const userId = result.recordset[0].id;
-    
-    // Get user
-    const userResult = await poolConnection.request()
-      .input('id', sql.Int, userId)
-      .query('SELECT id, fullName, email, userType, gender, profileImage, createdAt FROM Users WHERE id = @id');
-    
-    const user = userResult.recordset[0];
-    
-    // Generate tokens
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user.id);
-    
-    // Save refresh token
-    await saveRefreshToken(user.id, refreshToken);
-    
-    res.status(201).json({
-      message: 'Kullanıcı başarıyla oluşturuldu',
-      user,
-      token,
-      refreshToken
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Register admin
-exports.registerAdmin = async (req, res, next) => {
-  try {
-    const { fullName, email, password, gender } = req.body;
-    
-    // Validation
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ message: 'Tüm alanları doldurunuz' });
-    }
-    
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ message: 'Geçerli bir email adresi giriniz' });
-    }
-    
-    if (!isValidPassword(password)) {
-      return res.status(400).json({ 
-        message: 'Şifre en az 8 karakter uzunluğunda olmalı ve en az bir büyük harf, bir küçük harf ve bir rakam içermelidir' 
-      });
-    }
-    
-    const poolConnection = await pool;
-    
-    // Check if user exists
-    const userCheck = await poolConnection.request()
-      .input('email', sql.NVarChar, email)
-      .query('SELECT * FROM Users WHERE email = @email');
-    
-    if (userCheck.recordset.length > 0) {
-      return res.status(400).json({ message: 'Bu email adresi zaten kullanılıyor' });
-    }
-    
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
-    // Create admin user
-    const result = await poolConnection.request()
-      .input('fullName', sql.NVarChar, fullName)
-      .input('email', sql.NVarChar, email)
-      .input('password', sql.NVarChar, hashedPassword)
-      .input('gender', sql.NVarChar, gender || null)
-      .input('userType', sql.NVarChar, 'admin')
-      .input('createdAt', sql.DateTime, new Date())
-      .query(`
-        INSERT INTO Users (fullName, email, password, gender, userType, createdAt)
-        VALUES (@fullName, @email, @password, @gender, @userType, @createdAt);
-        
-        SELECT SCOPE_IDENTITY() AS id;
-      `);
-    
-    const userId = result.recordset[0].id;
-    
-    // Get user
-    const userResult = await poolConnection.request()
-      .input('id', sql.Int, userId)
-      .query('SELECT id, fullName, email, userType, gender, profileImage, createdAt FROM Users WHERE id = @id');
-    
-    const user = userResult.recordset[0];
-    
-    // Generate tokens
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user.id);
-    
-    // Save refresh token
-    await saveRefreshToken(user.id, refreshToken);
-    
-    res.status(201).json({
-      message: 'Admin kullanıcı başarıyla oluşturuldu',
-      user,
-      token,
-      refreshToken
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+// Token oluştur
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRE },
+  )
+}
 
 // Login
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    
+    const { email, password } = req.body
+
     // Validation
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email ve şifre gereklidir' });
+      return res.status(400).json({
+        success: false,
+        message: "Email ve şifre gereklidir",
+      })
     }
-    
-    const poolConnection = await pool;
-    
-    // Check if user exists
-    const result = await poolConnection.request()
-      .input('email', sql.NVarChar, email)
-      .query('SELECT * FROM Users WHERE email = @email');
-    
+
+    const poolConnection = await pool
+
+    // Check if user exists with role information
+    const result = await poolConnection
+      .request()
+      .input("email", sql.NVarChar, email)
+      .query(`
+        SELECT u.*, r.roleName 
+        FROM Users u
+        LEFT JOIN Roles r ON u.role = r.roleId
+        WHERE u.email = @email
+      `)
+
     if (result.recordset.length === 0) {
-      return res.status(400).json({ message: 'Geçersiz email veya şifre' });
+      return res.status(400).json({
+        success: false,
+        message: "Geçersiz email veya şifre",
+      })
     }
-    
-    const user = result.recordset[0];
-    
+
+    const user = result.recordset[0]
+
     // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    
+    const isMatch = await bcrypt.compare(password, user.password)
+
     if (!isMatch) {
-      return res.status(400).json({ message: 'Geçersiz email veya şifre' });
+      return res.status(400).json({
+        success: false,
+        message: "Geçersiz email veya şifre",
+      })
     }
-    
+
     // Update last login
-    await poolConnection.request()
-      .input('id', sql.Int, user.id)
-      .input('lastLogin', sql.DateTime, new Date())
-      .query('UPDATE Users SET lastLogin = @lastLogin WHERE id = @id');
-    
-    // Generate tokens
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user.id);
-    
-    // Save refresh token
-    await saveRefreshToken(user.id, refreshToken);
-    
+    await poolConnection
+      .request()
+      .input("id", sql.Int, user.id)
+      .input("lastLogin", sql.DateTime, new Date())
+      .query("UPDATE Users SET lastLogin = @lastLogin WHERE id = @id")
+
+    // Generate token
+    const token = generateToken(user)
+
     // Remove password from response
-    delete user.password;
-    
+    delete user.password
+
     res.json({
-      message: 'Giriş başarılı',
+      success: true,
+      message: "Giriş başarılı",
       user,
       token,
-      refreshToken
-    });
+    })
   } catch (err) {
-    next(err);
+    next(err)
   }
-};
+}
 
 // Refresh token
 exports.refreshToken = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
-    
+    const { refreshToken } = req.body
+
     if (!refreshToken) {
-      return res.status(400).json({ message: 'Refresh token gereklidir' });
+      return res.status(400).json({
+        success: false,
+        message: "Refresh token gereklidir",
+      })
     }
-    
+
     // Verify refresh token
-    const user = await verifyRefreshToken(refreshToken);
-    console.log(user)
-    // Generate new tokens
-    const newToken = generateToken(user);
-    const newRefreshToken = generateRefreshToken(user.id);
-    
-    // Delete old refresh token
-    await deleteRefreshToken(refreshToken);
-    
-    // Save new refresh token
-    await saveRefreshToken(user.id, newRefreshToken);
-    
-    res.json({
-      token: newToken,
-      refreshToken: newRefreshToken
-    });
-  } catch (err) {
-    if (err.message === 'Geçersiz refresh token' || err.message === 'Kullanıcı bulunamadı' || err.name === 'JsonWebTokenError') {
-      return res.status(401).json({ message: 'Geçersiz refresh token' });
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET)
+
+    // Get user
+    const poolConnection = await pool
+    const result = await poolConnection
+      .request()
+      .input("id", sql.Int, decoded.id)
+      .query(`
+        SELECT u.*, r.roleName 
+        FROM Users u
+        LEFT JOIN Roles r ON u.role = r.roleId
+        WHERE u.id = @id
+      `)
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Kullanıcı bulunamadı",
+      })
     }
-    next(err);
+
+    const user = result.recordset[0]
+
+    // Generate new token
+    const token = generateToken(user)
+
+    res.json({
+      success: true,
+      token,
+    })
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      message: "Geçersiz veya süresi dolmuş token",
+    })
   }
-};
+}
 
 // Logout
-exports.logout = async (req, res, next) => {
-  try {
-    const { refreshToken } = req.body;
-    
-    if (!refreshToken) {
-      return res.status(400).json({ message: 'Refresh token gereklidir' });
-    }
-    
-    // Delete refresh token
-    await deleteRefreshToken(refreshToken);
-    
-    res.json({ message: 'Çıkış başarılı' });
-  } catch (err) {
-    next(err);
-  }
-};
+exports.logout = async (req, res) => {
+  res.json({
+    success: true,
+    message: "Çıkış başarılı",
+  })
+}
 
 // Logout from all devices
-exports.logoutAll = async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    
-    // Delete all refresh tokens for user
-    await deleteAllUserRefreshTokens(userId);
-    
-    res.json({ message: 'Tüm cihazlardan çıkış yapıldı' });
-  } catch (err) {
-    next(err);
-  }
-};
+exports.logoutAll = async (req, res) => {
+  res.json({
+    success: true,
+    message: "Tüm cihazlardan çıkış yapıldı",
+  })
+}
 
 // Get current user
 exports.getCurrentUser = async (req, res, next) => {
   try {
-    const userId = req.user.id; // req.user.id kullanarak userId'yi alın
-    console.log(userId);
-    
-    const poolConnection = await pool;
-    
-    // Get user
-    const result = await poolConnection.request()
-      .input('id', sql.Int, userId)
-      .query('SELECT id, fullName, email, userType, gender, profileImage, createdAt, lastLogin FROM Users WHERE id = @id');
-    
+    const userId = req.user.id
+
+    const poolConnection = await pool
+
+    // Get user with role information
+    const result = await poolConnection
+      .request()
+      .input("id", sql.Int, userId)
+      .query(`
+        SELECT u.id, u.fullName, u.email, u.role as roleId, r.roleName, 
+               u.createdAt, u.lastLogin, u.profileImage
+        FROM Users u
+        LEFT JOIN Roles r ON u.role = r.roleId
+        WHERE u.id = @id
+      `)
+
     if (result.recordset.length === 0) {
-      return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+      return res.status(404).json({
+        success: false,
+        message: "Kullanıcı bulunamadı",
+      })
     }
-    
-    const user = result.recordset[0];
-    
-    res.json({ user });
+
+    const user = result.recordset[0]
+
+    res.json({
+      success: true,
+      user,
+    })
   } catch (err) {
-    next(err);
+    next(err)
   }
-};
+}
+
