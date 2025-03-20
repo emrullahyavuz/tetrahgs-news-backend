@@ -21,6 +21,17 @@ const generateToken = (user) => {
   )
 }
 
+// Refresh token oluştur
+const generateRefreshToken = (user) => {
+  return jwt.sign(
+    {
+      id: user.id,
+    },
+    JWT_REFRESH_SECRET,
+    { expiresIn: "7d" }, // Refresh token daha uzun süreli olmalı
+  )
+}
+
 // Login
 exports.login = async (req, res, next) => {
   try {
@@ -73,8 +84,9 @@ exports.login = async (req, res, next) => {
       .input("lastLogin", sql.DateTime, new Date())
       .query("UPDATE Users SET lastLogin = @lastLogin WHERE id = @id")
 
-    // Generate token
+    // Generate tokens
     const token = generateToken(user)
+    const refreshToken = generateRefreshToken(user)
 
     // Remove password from response
     delete user.password
@@ -84,8 +96,10 @@ exports.login = async (req, res, next) => {
       message: "Giriş başarılı",
       user,
       token,
+      refreshToken,
     })
   } catch (err) {
+    console.error("Login hatası:", err)
     next(err)
   }
 }
@@ -128,12 +142,15 @@ exports.refreshToken = async (req, res, next) => {
 
     // Generate new token
     const token = generateToken(user)
+    const newRefreshToken = generateRefreshToken(user)
 
     res.json({
       success: true,
       token,
+      refreshToken: newRefreshToken,
     })
   } catch (err) {
+    console.error("Refresh token hatası:", err)
     return res.status(401).json({
       success: false,
       message: "Geçersiz veya süresi dolmuş token",
@@ -143,6 +160,7 @@ exports.refreshToken = async (req, res, next) => {
 
 // Logout
 exports.logout = async (req, res) => {
+  // Client tarafında token'ları silmek yeterli olacaktır
   res.json({
     success: true,
     message: "Çıkış başarılı",
@@ -151,6 +169,7 @@ exports.logout = async (req, res) => {
 
 // Logout from all devices
 exports.logoutAll = async (req, res) => {
+  // Gerçek uygulamada, veritabanında kullanıcının tüm refresh token'larını geçersiz kılabilirsiniz
   res.json({
     success: true,
     message: "Tüm cihazlardan çıkış yapıldı",
@@ -190,6 +209,86 @@ exports.getCurrentUser = async (req, res, next) => {
       user,
     })
   } catch (err) {
+    console.error("Kullanıcı bilgileri getirme hatası:", err)
+    next(err)
+  }
+}
+
+// Register user
+exports.register = async (req, res, next) => {
+  try {
+    const { fullName, email, password } = req.body
+
+    // Validation
+    if (!fullName || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Ad Soyad, email ve şifre gereklidir",
+      })
+    }
+
+    const poolConnection = await pool
+
+    // Check if user already exists
+    const checkResult = await poolConnection
+      .request()
+      .input("email", sql.NVarChar, email)
+      .query("SELECT * FROM Users WHERE email = @email")
+
+    if (checkResult.recordset.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Bu email adresi zaten kullanılıyor",
+      })
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
+
+    // Create user
+    const result = await poolConnection
+      .request()
+      .input("fullName", sql.NVarChar, fullName)
+      .input("email", sql.NVarChar, email)
+      .input("password", sql.NVarChar, hashedPassword)
+      .input("role", sql.Int, 3) // Default role: User (3)
+      .input("createdAt", sql.DateTime, new Date())
+      .query(`
+        INSERT INTO Users (fullName, email, password, role, createdAt)
+        VALUES (@fullName, @email, @password, @role, @createdAt);
+        
+        SELECT SCOPE_IDENTITY() AS id;
+      `)
+
+    const userId = result.recordset[0].id
+
+    // Get user with role information
+    const userResult = await poolConnection
+      .request()
+      .input("id", sql.Int, userId)
+      .query(`
+        SELECT u.id, u.fullName, u.email, u.role as roleId, r.roleName, u.createdAt
+        FROM Users u
+        LEFT JOIN Roles r ON u.role = r.roleId
+        WHERE u.id = @id
+      `)
+
+    const user = userResult.recordset[0]
+
+    // Generate token
+    const token = generateToken(user)
+    const refreshToken = generateRefreshToken(user)
+
+    res.status(201).json({
+      success: true,
+      message: "Kayıt başarılı",
+      user,
+      token,
+      refreshToken,
+    })
+  } catch (err) {
+    console.error("Kayıt hatası:", err)
     next(err)
   }
 }
