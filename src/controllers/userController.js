@@ -17,7 +17,11 @@ exports.getAllUsers = async (req, res, next) => {
     
     // Get users
     const result = await poolConnection.request()
-      .query('SELECT id, fullName, email, userType, gender,status,profileImage, createdAt, lastLogin FROM Users ORDER BY createdAt DESC');
+      .query(`SELECT id, fullName, email, userType, gender,status,profileImage, createdAt, lastLogin,
+        (SELECT COUNT(*) 
+     FROM News
+     WHERE id IN (SELECT newsId FROM UserNews WHERE userId = u.id)) as newsCount
+         FROM Users as u ORDER BY createdAt DESC`);	
     
     // Add profile image URL
     const users = result.recordset.map(user => ({

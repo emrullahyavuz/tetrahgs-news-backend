@@ -8,13 +8,17 @@ exports.getAllCategories = async (req, res, next) => {
     // Get categories
     const result = await poolConnection.request()
       .query(`
-        SELECT c.*, COUNT(n.id) as newsCount
+        SELECT c.*,(SELECT COUNT(*) 
+     FROM News 
+     WHERE id IN (SELECT newsId FROM NewsCategories WHERE categoryId = c.id)
+    ) AS newsCount
         FROM Categories c
         LEFT JOIN News n ON c.id = n.categoryId
         GROUP BY c.id, c.name, c.slug, c.description, c.createdAt, c.updatedAt
         ORDER BY c.name
       `);
-    
+      
+    console.log("result",result.recordset)
     res.json({ categories: result.recordset });
   } catch (err) {
     next(err);

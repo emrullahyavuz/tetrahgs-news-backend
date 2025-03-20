@@ -190,14 +190,39 @@ exports.createNews = async (req, res, next) => {
       .input("createdAt", sql.DateTime, new Date())
       .input("viewCount", sql.Int, 0)
       .query(`
-        INSERT INTO News (title, summary, content, slug, categoryId, status, imageUrl, authorId, createdAt, viewCount)
-        VALUES (@title, @summary, @content, @slug, @categoryId, @status, @imageUrl, @authorId, @createdAt, @viewCount);
+        INSERT INTO News (title, summary, content, slug, status,categoryId, imageUrl, authorId, createdAt, viewCount)
+        VALUES (@title, @summary, @content, @slug, @status,@categoryId, @imageUrl, @authorId, @createdAt, @viewCount);
         
         SELECT SCOPE_IDENTITY() AS id;
       `)
 
+
+
+
+
     const newsId = result.recordset[0].id
 
+    const userNewsAddResult = await poolConnection
+    .request()
+    .input("newsId", sql.Int, newsId)
+    .input("authorId", sql.Int, req.user.id)
+    .query(`
+      INSERT INTO UserNews (userId, newsId)
+      VALUES (@authorId, @newsId);
+    `)
+    let newsCategoryAddResult;
+    if(userNewsAddResult.rowsAffected[0]=1){
+       newsCategoryAddResult = await poolConnection
+    .request()
+    .input("newsId", sql.Int, newsId)
+    .input("categoryId", sql.Int, categoryId)
+    .query(`
+      INSERT INTO NewsCategories (newsId, categoryId)
+      VALUES (@newsId, @categoryId);
+    `)
+    }
+
+if(newsCategoryAddResult.rowsAffected[0]=1){
     res.status(201).json({
       success: true,
       message: "Haber başarıyla eklendi",
@@ -213,7 +238,13 @@ exports.createNews = async (req, res, next) => {
         authorId: req.user.id,
         createdAt: new Date().toISOString(),
       },
-    })
+    })}
+    else {
+      return res.status(400).json({
+        success: false,
+        message: "Haber eklenirken bir hata oluştu",
+      })
+    }
   } catch (err) {
     next(err)
   }
@@ -269,7 +300,7 @@ exports.updateNews = async (req, res, next) => {
     const slug = createSlug(title)
 
     // Haberi güncelle
-    await poolConnection
+   let result= await poolConnection
       .request()
       .input("id", sql.Int, id)
       .input("title", sql.NVarChar, title)
@@ -293,6 +324,22 @@ exports.updateNews = async (req, res, next) => {
         WHERE id = @id
       `)
 
+    let updateNewsCategoriesResult;
+
+      if(result.rowsAffected[0])
+      {
+      updateNewsCategoriesResult = await poolConnection
+    .request()
+    .input("newsId", sql.Int, id)
+    .input("categoryId", sql.Int, categoryId)
+    .query(`
+      Update NewsCategories
+      Set categoryId= @categoryId
+      Where newsId=@newsId;
+    `)
+      }
+      if(updateNewsCategoriesResult.rowsAffected[0]){
+
     res.json({
       success: true,
       message: "Haber başarıyla güncellendi",
@@ -307,7 +354,15 @@ exports.updateNews = async (req, res, next) => {
         imageUrl,
         updatedAt: new Date().toISOString(),
       },
-    })
+    })}
+    else
+    {
+      return res.status(400).json({
+        success: false,
+        message: "Haber güncellenirken bir hata oluştu",
+        
+      })
+    } 
   } catch (err) {
     next(err)
   }
@@ -349,14 +404,37 @@ exports.deleteNews = async (req, res, next) => {
         })
       }
     }
+    let resultNewsCategory=await poolConnection.request().input("id", sql.Int, id).query("DELETE FROM NewsCategories WHERE newsId = @id")
+    let resultUserNews;
+    console.log(resultNewsCategory)
+    if(resultNewsCategory.rowsAffected!=undefined && resultNewsCategory.rowsAffected[0]){
+      resultUserNews=await poolConnection.request().input("id", sql.Int, id).query("DELETE FROM UserNews WHERE newsId = @id")
+    }
 
+     console.log(resultUserNews)
+    let resultNews;
+   
+
+    if(resultUserNews.rowsAffected!=undefined && resultUserNews.rowsAffected[0]){
+      resultNews=await poolConnection.request().input("id", sql.Int, id).query("DELETE FROM News WHERE id = @id")   
+    }
+    console.log(resultNews.rowsAffected)
+
+    if(resultNews.rowsAffected!=undefined && resultNews.rowsAffected[0]){
+      res.json({
+        success: true,
+        message: "Haber başarıyla silindi",
+      })
+    }
+    else {
+      return res.status(400).json({
+        success: false,
+        message: "Haber silinirken bir hata oluştu",
+      })
+    }
     // Haberi sil
-    await poolConnection.request().input("id", sql.Int, id).query("DELETE FROM News WHERE id = @id")
 
-    res.json({
-      success: true,
-      message: "Haber başarıyla silindi",
-    })
+   
   } catch (err) {
     next(err)
   }
