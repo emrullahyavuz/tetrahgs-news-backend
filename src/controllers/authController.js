@@ -180,6 +180,7 @@ exports.logoutAll = async (req, res) => {
 exports.getCurrentUser = async (req, res, next) => {
   try {
     const userId = req.user.id
+    
 
     const poolConnection = await pool
 

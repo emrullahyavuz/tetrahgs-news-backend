@@ -1,11 +1,28 @@
 const jwt = require("jsonwebtoken")
 const { pool, sql } = require("../config/database")
+const { JWT_SECRET } = require('../config/config');
 
-// JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret"
+
+
+
+const authenticate = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+
+  if (!token) {
+    return res.status(401).json({ message: 'Kimlik doğrulama başarısız' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ message: 'Geçersiz veya süresi dolmuş token' });
+  }
+};
 
 // Kullanıcı kimlik doğrulama middleware'i
-exports.protect = async (req, res, next) => {
+const protect = async (req, res, next) => {
   let token
 
   // Token'ı header'dan al
@@ -61,7 +78,7 @@ exports.protect = async (req, res, next) => {
 }
 
 // Belirli rollere sahip kullanıcıları kontrol eden middleware
-exports.authorize = (...roles) => {
+const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -82,7 +99,7 @@ exports.authorize = (...roles) => {
 }
 
 // Admin rolü kontrolü (roleId = 1)
-exports.admin = (req, res, next) => {
+const admin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -101,7 +118,7 @@ exports.admin = (req, res, next) => {
 }
 
 // Editor rolü kontrolü (roleId = 1 veya 2)
-exports.editor = (req, res, next) => {
+const editor = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -117,5 +134,13 @@ exports.editor = (req, res, next) => {
   }
 
   next()
+}
+
+module.exports = {
+  authenticate,
+  protect,
+  authorize,
+  admin,
+  editor,
 }
 
